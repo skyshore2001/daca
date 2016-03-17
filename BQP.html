@@ -1,0 +1,564 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="Content-Style-Type" content="text/css" />
+  <meta name="generator" content="pandoc" />
+  <title>BQP - 业务查询协议</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <style>
+  em {
+  	font-weight: bold;
+  }
+  pre {
+  	margin-left: 10px;
+  }
+  code {
+  	color: blue;
+  }
+  </style>
+</head>
+<body>
+<div id="header">
+<h1 class="title">BQP - 业务查询协议</h1>
+</div>
+<div id="TOC">
+<ul>
+<li><a href="#基本原则"><span class="toc-section-number">1</span> 基本原则</a><ul>
+<li><a href="#通讯协议"><span class="toc-section-number">1.1</span> 通讯协议</a></li>
+<li><a href="#关于空值"><span class="toc-section-number">1.2</span> 关于空值</a></li>
+<li><a href="#使用path_info模式的url"><span class="toc-section-number">1.3</span> 使用PATH_INFO模式的URL</a></li>
+<li><a href="#应用标识"><span class="toc-section-number">1.4</span> 应用标识</a></li>
+<li><a href="#测试模式"><span class="toc-section-number">1.5</span> 测试模式</a></li>
+<li><a href="#调试等级"><span class="toc-section-number">1.6</span> 调试等级</a></li>
+<li><a href="#数据传输安全"><span class="toc-section-number">1.7</span> 数据传输安全</a></li>
+</ul></li>
+<li><a href="#形式化接口描述"><span class="toc-section-number">2</span> 形式化接口描述</a><ul>
+<li><a href="#可选参数"><span class="toc-section-number">2.1</span> 可选参数</a></li>
+<li><a href="#基本类型"><span class="toc-section-number">2.2</span> 基本类型</a></li>
+<li><a href="#复杂类型"><span class="toc-section-number">2.3</span> 复杂类型</a></li>
+<li><a href="#序列化类型"><span class="toc-section-number">2.4</span> 序列化类型</a></li>
+<li><a href="#接口权限"><span class="toc-section-number">2.5</span> 接口权限</a></li>
+</ul></li>
+<li><a href="#业务接口设计规范"><span class="toc-section-number">3</span> 业务接口设计规范</a><ul>
+<li><a href="#通用对象操作接口"><span class="toc-section-number">3.1</span> 通用对象操作接口</a><ul>
+<li><a href="#对象查询"><span class="toc-section-number">3.1.1</span> 对象查询</a></li>
+<li><a href="#对象列表导出"><span class="toc-section-number">3.1.2</span> 对象列表导出</a></li>
+<li><a href="#对象操作示例"><span class="toc-section-number">3.1.3</span> 对象操作示例</a></li>
+</ul></li>
+<li><a href="#分页机制"><span class="toc-section-number">3.2</span> 分页机制</a></li>
+<li><a href="#分页机制实现"><span class="toc-section-number">3.3</span> 分页机制实现</a></li>
+<li><a href="#合作伙伴接口设计"><span class="toc-section-number">3.4</span> 合作伙伴接口设计</a><ul>
+<li><a href="#签名算法"><span class="toc-section-number">3.4.1</span> 签名算法</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</div>
+<p>业务查询协议，简称BQP(Business Query Protocol)，定义业务接口设计规范及如何形式化描述业务接口，客户端怎样请求服务端业务逻辑，以及服务端如何返回业务数据。</p>
+<p>在定义业务接口时，应使用形式化方式描述接口。 这些描述也可以作为元数据（metadata）由服务端返回客户端。</p>
+<h1 id="基本原则"><span class="header-section-number">1</span> 基本原则</h1>
+<h2 id="通讯协议"><span class="header-section-number">1.1</span> 通讯协议</h2>
+<p>客户端通过HTTP协议与服务端交互，调用服务端接口。 接口请求一般使用HTTP GET或POST方法，通过URL或POST内容传递参数，参数使用urlencoded编码方式，即<code>p1=value1&amp;p2=value2</code>的形式； 接口返回内容使用JSON格式。以上传输中，参数或属性值使用UTF-8编码。</p>
+<p>每个接口均应在接口文档中规范描述，比如接口描述：</p>
+<pre><code>fn(p1, p2) -&gt; {field1, field2}</code></pre>
+<p>其中<code>fn</code>为接口名，<code>p1</code>, <code>p2</code>是两个参数，<code>-&gt;</code>后面部分是调用成功时的返回值，使用扩展的<a href="https://github.com/skyshore2001/cocoon-notation">蚕茧表示法</a>描述，详见下文。 如果没有箭头后面部分，表示没有返回值，默认返回字符串&quot;OK&quot;.</p>
+<p>以下假定接口调用地址为&quot;/api.php&quot;，该调用可以用HTTP GET请求(通过URL传参)实现如下:</p>
+<pre><code>GET /api.php/fn?p1=value1&amp;p2=value2</code></pre>
+<p>或用POST请求实现:</p>
+<pre><code>POST /api.php/fn
+Content-Type: application/x-www-form-urlencoded
+
+p2=value2&amp;p1=value1</code></pre>
+<p>如果在实现时，服务端很难支持在URL最后包含调用名，也可以使用如下形式的等价访问：</p>
+<pre><code>GET /api.php?ac=fn&amp;p1=value1&amp;p2=value2</code></pre>
+<p>协议规定，请求地址中的最后一段为接口名(如<code>api.php/fn</code>中的<code>fn</code>)，或用URL参数<code>ac</code>或<code>_ac</code>标识接口名, 但必须使用URL参数传递。其它参数未加说明的, 可以选择通过URL或POST传参.</p>
+<p>接口名使用驼峰式命名规则，一般有两种形式，1）函数调用型，以小写字母开头，如<code>getOrder</code>；2）对象调用型，对象名首字母为大写，后跟调用名，中间以&quot;.&quot;分隔，如<code>Order.get</code>。</p>
+<p>注意在用HTTP POST时默认HTTP头Content-Type需要按上例中正确设置, 少数例外情况应特别指出，比如上传文件接口upload设计为使用HTTP头&quot;Content-type: multipart/form-data&quot;，应在接口文档中明确说明。</p>
+<p>有时在描述接口时使用两个括号，如：</p>
+<pre><code>fn(p1)(p2,p3) -&gt; {field1, field2}</code></pre>
+<p>它表示后一个括号中的参数表示必须通过POST传参, 而前一个括号的参数必须用URL传参数, 像这样:</p>
+<pre><code>POST /api.php?ac=fn&amp;p1=value1
+Content-Type: application/x-www-form-urlencoded
+
+p2=value2&amp;p3=value3</code></pre>
+<p>协议规定：</p>
+<ul>
+<li>只要服务端正确收到请求并处理，均返回HTTP Code 200，返回内容使用JSON格式，为一个至少含有2元素的数组。</li>
+<li>在请求成功时返回内容格式为 <code>[0, data]</code>，其中<code>data</code>的类型由接口描述定义。</li>
+<li>在请求失败时返回内容格式为 <code>[非0错误码, 错误信息]</code>.</li>
+<li>从返回数组的第3个元素起, 为调试信息, 仅用于问题诊断, 一般不应显示出来给最终用户。</li>
+<li>所有交互内容采用UTF-8编码。</li>
+</ul>
+<p>服务端在返回JSON格式数据时应如下设置HTTP头属性：</p>
+<pre><code>Content-Type: text/plain; charset=UTF-8</code></pre>
+<p>注意：不采用&quot;application/json&quot;类型是考虑客户端可以更自由的处理返回结果（比如jQuery等库会自动将json类型的返回值转成对象）。</p>
+<p>服务端应避免客户端对返回结果缓冲，一般应在HTTP响应中加上</p>
+<pre><code>    Cache-Control: no-cache</code></pre>
+<p>以下面的接口描述为例：</p>
+<pre><code>（根据id取车型信息：）
+getModel(id) -&gt; {id, name, dscr}</code></pre>
+<p>在实现时应明确：</p>
+<ul>
+<li><p>接口名称是<code>getModel</code>，参数为<code>id</code>，对应的HTTP请求URL为 <code>GET /api.php/getModel?id=100</code>，该调用可描述为<code>getModel(id=100)</code>.</p></li>
+<li><p>服务端处理成功时返回类型为<code>{id, name, dscr}</code>，关于返回类型表述方式详见下节描述。完整的返回内容为</p>
+<pre><code>HTTP/1.1 200 OK
+
+[0, {id: 100, name: &quot;myname&quot;, dscr:&quot;mydscr&quot;}]</code></pre>
+<p>以上返回可直接描述为返回<code>{id: 100, name: &quot;myname&quot;, dscr:&quot;mydscr&quot;}</code>。</p></li>
+<li><p>服务端处理失败时返回信息如</p>
+<pre><code>HTTP/1.1 200 OK
+
+[1, &quot;未认证&quot;]</code></pre>
+<p>错误码及错误信息在应用中应明确定义，且前后端共享一致，如（以后端php实现为例）：</p>
+<pre><code>// 错误码定义
+
+const E_OK=0;
+const E_PARAM=1;
+const E_AUTH=2;
+const E_DB=3;
+const E_SERVER=4;
+const E_FORBIDDEN=5;
+
+$ERRINFO = [
+    E_PARAM =&gt; &quot;参数不正确&quot;,
+    E_AUTH =&gt; &quot;未认证&quot;,
+    E_DB =&gt; &quot;数据库错误&quot;,
+    E_SERVER =&gt; &quot;服务器错误&quot;,
+    E_FORBIDDEN =&gt; &quot;禁止操作&quot;
+];</code></pre></li>
+</ul>
+<h2 id="关于空值"><span class="header-section-number">1.2</span> 关于空值</h2>
+<p>假如有参数<code>a=1&amp;b=&amp;c=hello</code>, 其中参数&quot;b&quot;值为空串。 一般情况下，参数&quot;b&quot;没有意义，即与<code>a=1&amp;c=hello</code>意义相同。</p>
+<p>在某些场合，如对象保存操作<code>{object}.set</code>，在POST内容中如果出现&quot;b=&quot;, 则表示将该字段置null，相当于&quot;b=null&quot;. 在这些场合下将单独说明。</p>
+<h2 id="使用path_info模式的url"><span class="header-section-number">1.3</span> 使用PATH_INFO模式的URL</h2>
+<p>在后端编程语言支持的情况下，尽量通过设定路由规则，让URL更可读。例如，接口调用</p>
+<pre><code>https://server/product/api.php?ac=login&amp;phone=137&amp;pwd=1234</code></pre>
+<p>等价于</p>
+<pre><code>https://server/product/api.php/login?phone=137&amp;pwd=1234</code></pre>
+<p>由于后者可读性更强，尽量提供后一种访问方式。 对于对象操作型接口，URL像这样：</p>
+<pre><code>http://server/product/api.php?ac=Ordr.query&amp;res=id,dscr</code></pre>
+<p>它等价于以下更好的方式：</p>
+<pre><code>http://server/product/api.php/Ordr.query?res=id,dscr</code></pre>
+<p>即&quot;Ordr/query&quot;转化为&quot;ac=Ordr.query&quot;.</p>
+<h2 id="应用标识"><span class="header-section-number">1.4</span> 应用标识</h2>
+<p>每个客户端应用应该有唯一应用标识（如果没有，缺省为&quot;user&quot;，表示客户端应用），以URL参数&quot;_app&quot;指定。 在每次接口请求时，客户端框架应自动添加该参数。</p>
+<p>应用标识对应一个应用类型，如应用标识&quot;user&quot;, &quot;user2&quot;, &quot;user-keyacct&quot;对应同一应用类型&quot;user&quot;. 即应用标识的第一个词（不含结尾数字）作为应用类型。</p>
+<p>应用类型决定了HTTP会话中的cookie项的名字（由服务端实现）：</p>
+<pre><code>cookie名={应用类型}id</code></pre>
+<p>或对于<a href="#测试模式">测试模式</a>下,</p>
+<pre><code>cookie名=t{应用类型}id</code></pre>
+<p>例如，应用标识为&quot;emp&quot;(表示员工端), 当第一次接口请求时：</p>
+<pre><code>GET /api.php/fn?_app=emp</code></pre>
+<p>服务端应通过HTTP头指定会话标识，如：</p>
+<pre><code>SetCookie: empid=xxxxxx</code></pre>
+<p>对于相同应用类型的应用，它们可以共享会话（如一个应用已登录，同一浏览器中其它同类型应用可免登录）。 在设计多个客户端的应用标识时，应根据这一特点决定是否使用相同应用类型。</p>
+<p>规范定义以下应用类型，具体应用可在此基础上增加：</p>
+<ul>
+<li>user: 客户端应用</li>
+<li>emp: 员工端应用，如处理客户订单等。</li>
+<li>admin: 超级管理端应用。</li>
+</ul>
+<h2 id="测试模式"><span class="header-section-number">1.5</span> 测试模式</h2>
+<p>URL参数&quot;_test&quot;值为非0时表示测试模式。特别地，当_test值为2时，表示回归测试模式（用于自动化测试）。</p>
+<p>应用可以支持测试模式(TEST_MODE)，在该模式下：</p>
+<ul>
+<li>如果在线上，后端必须连接非生产数据库。</li>
+<li>前端必须明显标明当前处理测试模式下，一般在进入时弹框提醒。</li>
+<li>部分接口仅在测试模式下才有权限调用，如用于回归测试的接口。</li>
+</ul>
+<h2 id="调试等级"><span class="header-section-number">1.6</span> 调试等级</h2>
+<p>URL参数&quot;_debug&quot;定义调试等级, 默认为0. 如果为1-9的数字, 将添加调试信息到结果数组中.</p>
+<p>调试等级仅在测试模式下有效。</p>
+<p>当设置_debug=9时，应可输出所有SQL语句。</p>
+<h2 id="数据传输安全"><span class="header-section-number">1.7</span> 数据传输安全</h2>
+<p>服务端应支持HTTPS服务。对于传输敏感数据的接口，客户端应使用HTTPS协议与服务器通信，如涉及用户隐私信息（用户密码，电话，地址，卡号等）。</p>
+<p>注意：服务器很可能采用自签证书，且证书中CN名称(CommonName字段)与网站实际名称可能不符. 这种情况下一般的SSL库在连接时会验证服务端证书并报错，客户端应设置连接选择忽略这些错误。例如，使用CURL库做接口请求时，可设置：</p>
+<pre><code># for https, ignore cert errors (e.g. for self-signed cert)
+curl_setopt($h, CURLOPT_SSL_VERIFYPEER, false);
+curl_setopt($h, CURLOPT_SSL_VERIFYHOST, 0);</code></pre>
+<h1 id="形式化接口描述"><span class="header-section-number">2</span> 形式化接口描述</h1>
+<p>接口描述应让人明确接口原型，参数（或返回属性）类型和含义，以及权限说明，如：</p>
+<pre><code>根据id取车型信息
+getModel(id) -&gt; {id, name, dscr}
+
+id:: Integer. 车款编号.
+name:: Integer. 车款名称.
+dscr:: Integer. 车款描述.</code></pre>
+<p>参数或返回值中的属性应明确数据类型，包括基本类型，复杂类型以及序列化类型。其中参数因为通过urlencoded格式传输，一般是基本类型或序列化类型（复杂字符串），而返回值由于采用JSON格式，一般是复杂类型。</p>
+<p>本规范主要依据<a href="https://github.com/skyshore2001/cocoon-notation">蚕茧表示法</a>来描述类型并做了一些扩展，详见下文论述。</p>
+<p>参数应明确其类型及含义，如果参数含义明确则可省略；如果参数是基本类型且可根据参数名称推导出（依据&quot;蚕茧法&quot;）是整数、日期、字符串等，也可以省略参数类型描述。</p>
+<p>上例中没有权限说明，这表明权限是 AUTH_GUEST (参考<a href="#接口权限">接口权限</a>节)</p>
+<p>又比如一个含有复杂类型和序列化类型的例子：</p>
+<pre><code>取订单
+Ordr.get(id) -&gt; {id, status, storePos, @orderLog}
+
+权限：AUTH_USER
+
+返回：
+storePos:: Coord. 商户坐标.
+orderLog:: [{id, tm, ac, dscr}]. 订单日志。
+
+ac:: 操作类型: CR-创建,PA-已付款,CA-已取消,RE-已完成.</code></pre>
+<p>上例中，<code>id</code>, <code>status</code>等字段因含义明确可不做介绍，<code>storePos</code>是一个序列化类型（以字符串表示的复杂类型），表示<code>Coord</code>类型，特别标明。而<code>orderLog</code>是一个复杂结构，应以“蚕茧法”分解到基本类型属性，其中<code>id</code>, <code>tm</code>等属性因含义明确省略了介绍。</p>
+<h2 id="可选参数"><span class="header-section-number">2.1</span> 可选参数</h2>
+<p>如果API的参数表示为:</p>
+<pre><code>fn(p1, p2?, p3?=1) -&gt; {attr1, attr2?}</code></pre>
+<p>它表示：</p>
+<ul>
+<li>p1是必选参数</li>
+<li>p2,p3是可选参数，p3的缺省值是1，p2缺省值是0或空串&quot;&quot;或null(取决于基本类型是数值型，字符串还是对象等)</li>
+<li>返回一个对象，其中，attr1是必出现的属性，而attr2可能没有（接口说明中应描述何时没有）。</li>
+</ul>
+<h2 id="基本类型"><span class="header-section-number">2.2</span> 基本类型</h2>
+<p>基本类型指数值、字符串等不可再细分的类型。</p>
+<p>在设计时，本规范依据“蚕茧表示法”思想，遵循以下命名规范，以便通过名称暗示类型。类型也可以通过后缀标识符标明，或在描述属性时标明。规则如下：</p>
+<ul>
+<li>Integer: 后缀标识符为&quot;&amp;&quot;, 或以&quot;Id&quot;, &quot;Cnt&quot;等结尾, 如 customerId, age&amp;</li>
+<li>Double: 后缀标识符为&quot;#&quot;, 如 avgValue#</li>
+<li>Currency: 后缀标识符为&quot;@&quot;, 或以&quot;Price&quot;, &quot;Total&quot;, &quot;Qty&quot;, &quot;Amount&quot;结尾, 如 unitPrice, price2@。</li>
+<li>Datetime/Date/Time: 分别以&quot;Tm&quot;/&quot;Dt&quot;/&quot;Time&quot;结尾，如 tm 可表示日期时间如&quot;2010-1-1 9:00&quot;，comeDt 只表示日期如&quot;2010-1-1&quot;，而 comeTime只表示时间如&quot;9:00&quot;</li>
+<li>Boolean/TinyInt(1-byte): 以Flag结尾, 或以is开头.</li>
+<li>String: 未显示指明的一般都作为字符串类型。</li>
+</ul>
+<h2 id="复杂类型"><span class="header-section-number">2.3</span> 复杂类型</h2>
+<p>复杂类型主要指对象、数组、字典这些常用结构，本规范主要使用&quot;蚕茧表示法&quot;描述，并扩展了如table等常用类型，举例列举如下：</p>
+<p><em>{id, name}</em></p>
+<p>一个简单对象，有两个字段id和name。例：<code>{id: 100, name: &quot;name1&quot;}</code></p>
+<p><em>[id...] or [id]</em></p>
+<p>一个简单数组，元素为id。例：<code>[100, 200, 400]</code>, 每项为一个id</p>
+<p><em>[id, name]</em></p>
+<p>一个简单数组，例：<code>[100, &quot;liang&quot;]</code>，第一项为id, 第二项为name</p>
+<p><em>[ [id, name] ] 或 varr(id, name)</em></p>
+<p>简单二维数组，又称varr, 如 <code>[ [100, &quot;liang&quot;], [101, &quot;wang&quot;] ]</code>.</p>
+<p><em>[{id, name}] 或 objarr(id, name)</em></p>
+<p>一个数组，每项为一个对象，又称objarr。例：<code>[{id: 100, name: &quot;name1&quot;}, {id: 101, name: &quot;name2&quot;}]</code></p>
+<p><em>tbl(id, name)</em></p>
+<p>table对象。其详细格式为 <code>{h: [header1, header2, ...], d:[row1, row2, ...]}</code>，例如</p>
+<pre><code>{
+  h: [&quot;id&quot;, &quot;name&quot;],
+  d: [[100, &quot;myname1&quot;], [200, &quot;myname2&quot;]]
+}</code></pre>
+<p>table对象支持分页机制(paging)，返回字段中包含&quot;nextkey&quot;等。 详情请参考下一章节&quot;分页机制&quot;.</p>
+<p>注意：</p>
+<ul>
+<li>在使用JSON传输数据时，字段可以不区分类型，即使是整形也<strong>可能</strong>用引号括起来当作字符串传输，客户端在对JSON数据反序列化时应自行考虑类型转换。根据蚕茧表示法，属性的基本数据类型一般由属性名暗示，或在接口描述中显式约定。</li>
+<li>不论哪种类型，都可能返回null。客户端必须能够处理null，将其转为相应类型正确的值。</li>
+</ul>
+<h2 id="序列化类型"><span class="header-section-number">2.4</span> 序列化类型</h2>
+<p>序列化类型其实是一个字符串，但该字符串以特殊的结构来传输复杂类型，这称为序列化。 在本协议中，常用的序列化方式有：</p>
+<ul>
+<li><p>逗号分隔的简单字符串序列(数组序列化)，如</p>
+<pre><code>&quot;经度,纬度&quot;</code></pre>
+<p>或带上类型描述：</p>
+<pre><code>&quot;经度/Double,纬度/Double&quot;</code></pre>
+<p>它可表示 <code>121.233543,31.345457</code>； 特别地，本例中的这种类型又称为Coord类型，描述地理坐标，即</p>
+<pre><code>Coord: &quot;经度/Double,纬度/Double&quot;.</code></pre></li>
+<li><p>List表，以逗号分隔行，以冒号分隔列的表，如定义：</p>
+<pre><code>List(id, name?)</code></pre>
+<p>或指定每列的类型，如</p>
+<pre><code>List(id/Integer, name?/String)</code></pre>
+<p>参数后加&quot;?&quot;表示是可选参数, 该项可以为空。 它可以表示这样的数据：</p>
+<pre><code>10:liang,11:wang</code></pre>
+<p>因为name字段可省略，它也可以表示：</p>
+<pre><code>10,11</code></pre>
+<p>这种格式一般用于前后端间传递简单的表，尤其是一组数字。 注意：由于使用分隔符&quot;,&quot;和&quot;:&quot;，每个字段内不能有这两个特殊符号(例如假如有日期字段，中间不可以有&quot;:&quot;, 如&quot;2015/11/20 1030&quot;或&quot;20151120 1030&quot;)。</p>
+<p>在传输数据时，也允许带表头信息，这时用首字符&quot;@&quot;标明表头行，如</p>
+<pre><code>@id:name,10:liang,11:wang</code></pre></li>
+<li><p>JSON序列化。将一个复杂结构以JSON格式序列化后的字符串，如定义：</p>
+<pre><code>Json({id, name})</code></pre>
+<p>括号内使用蚕茧法表示复杂数据结构。它可以表示这样格式的字符串：</p>
+<pre><code>&quot;{\&quot;id\&quot;: 100, \&quot;name\&quot;: \&quot;liang\&quot;}&quot;</code></pre>
+<p>又比如，要将一个普通的表用一个字段传递，可以描述为：</p>
+<pre><code>Json(tbl(id, name))</code></pre></li>
+<li><p>Table普通表。以换行符分隔行，以Tab字符分隔列，将整个表序列化为一个字符串作为一个字段传输，如</p>
+<pre><code>Table(id,name,dscr?)</code></pre>
+<p>可以表示数据</p>
+<pre><code>&quot;10 \t liang \n 11 \t wang \n&quot; （注：为易于理解中间加了空格，实际传输时没有额外空格）</code></pre>
+<p>与List结构相比，由于分隔符&quot;&quot;和&quot;&quot;不常用在字段内容中，故不易产生冲突。</p></li>
+</ul>
+<h2 id="接口权限"><span class="header-section-number">2.5</span> 接口权限</h2>
+<p>要访问每个接口，必须拥有相应的权限。或者，在权限不同时，调用同一接口返回的内容也可能不同。接口描述应包括权限描述。</p>
+<p>通用权限定义如下：（具体应用可在此基础上增加）</p>
+<ul>
+<li>AUTH_GUEST: 任何人可用, 无权限限制。如不用登录即可查看商户, 天气等.</li>
+<li>AUTH_USER: 用户登录后可用. 可做下单, 查看订单等操作.</li>
+<li>AUTH_EMP: 员工操作，如查看和操作订单等。</li>
+<li>AUTH_TEST_MODE: 测试模式下可用。</li>
+<li>AUTH_MOCK_MODE: 模拟模式下可用。</li>
+<li>AUTH_ADMIN: 可操作一切对象. 但没有自动完成功能. 一般由程序内部使用, 或在专供超级管理员使用的超级管理端中应用。</li>
+<li>AUTH_PARTNER: 用于系统集成的权限验证。不用登录（相当于AUTH_GUEST），但调用每个接口时必须提供_pwd/_sign参数之一供验证，参考<a href="#合作伙伴接口设计">合作伙伴接口设计</a>章节。</li>
+</ul>
+<p>如果接口未明确指定权限，则认为是AUTH_GUEST.</p>
+<h1 id="业务接口设计规范"><span class="header-section-number">3</span> 业务接口设计规范</h1>
+<p>业务接口包括函数调用型接口和对象调用型接口。</p>
+<p>函数型接口名称一般为动词或动词开头，如queryOrder, getOrder等。对象型接口的格式为<code>{对象名}.{动作}</code>, 如 &quot;Order.get&quot;, &quot;Order.query&quot;等。 对象型接口应支持以下标准动作：add, set, query, get, del。详细原型请参阅通用表操作一节。</p>
+<p>参数id作为对象主键字段。一般建议在定义数据模型时：</p>
+<ul>
+<li>一个数据库表对应一类对象或子对象。</li>
+<li>每个表都有名为id的主键字段，作为对象的主键。</li>
+</ul>
+<h2 id="通用对象操作接口"><span class="header-section-number">3.1</span> 通用对象操作接口</h2>
+<p>以下接口完成对象的增删改查(CRUD)动作. 服务端实现时，应根据当前用户所拥有权限进行限制.</p>
+<p>在实现时，一般一个对象对应一张数据库主表，若干子表以及若干关联表。</p>
+<pre><code>{object}.add()(POST fields...) -&gt; id
+
+{object}.set(id)(POST fields...)
+
+{object}.get(id, res?) -&gt; {fields...}
+
+{object}.del(id)
+
+{object}.query(res?, cond?, distinct?=0, _pagesz?=20, _pagekey?, _fmt?) -&gt; tbl(field1,field2,...)
+
+{object}.query(wantArray=1, @subobj?, res?, ...) -&gt; [{field1,field2,...}]</code></pre>
+<dl>
+<dt>fields</dt>
+<dd>每个字段及其值.
+</dd>
+<dt>id</dt>
+<dd>Integer. 整型主键，不可修改.
+</dd>
+</dl>
+<p>注意:</p>
+<ul>
+<li>对于add/set方法, 使用HTTP POST请求; fields表示表中每个字段的key-value值, 通过POST字段传递(使用URL编码). set方法中的id字段通过URL传递.</li>
+<li>对于set操作, 如果要将某字段置空, 可以用空串或&quot;null&quot; (小写). 如&quot;picId=&quot;或&quot;picId=null&quot;; 除了用在set操作的POST内容中，其它情况下字段设置为空串相当于没有设置该字段。</li>
+<li>对于set操作，如果要将某字符串类型字段置空串(不建议使用)，可以用&quot;empty&quot;, 如&quot;sn=empty&quot;。但如果对数值等其它类型设置，会导致其值为0或0.0。</li>
+</ul>
+<h3 id="对象查询"><span class="header-section-number">3.1.1</span> 对象查询</h3>
+<p>查询操作的参数可参照SQL语句来理解：</p>
+<dl>
+<dt>res</dt>
+<dd>String. 指定返回字段, 多个字段以逗号分隔，例如, res=&quot;field1,field2&quot;.
+</dd>
+<dt>cond</dt>
+<dd>String. 指定查询条件，格式可参照SQL语句的&quot;WHERE&quot;子句。例如：cond=&quot;field1&gt;100 AND field2='hello'&quot;, 注意使用UTF8+URL编码, 字符串值应加上单引号.
+</dd>
+<dt>orderby</dt>
+<dd>String. 指定排序条件，格式可参照SQL语句的&quot;ORDER BY&quot;子句，例如：orderby=&quot;id desc&quot;，也可以多个排序：&quot;tm desc,status&quot; (按时间倒排，再按状态正排)
+</dd>
+<dt>distinct</dt>
+<dd>Boolean. 如果为1, 生成&quot;SELECT DISTINCT ...&quot;查询.
+</dd>
+</dl>
+<p>尽管类似SQL语句，但对参数值有一些安全限制：</p>
+<ul>
+<li>res, orderby只能是字段（或虚拟字段）列表，不能出现函数、子查询等。</li>
+<li>cond可以由多个条件通过and或or组合而成，而每个条件的左边是字段名，右边是常量。不允许对字段运算，不允许子查询（不可以有select等关键字）。</li>
+</ul>
+<p>用参数<code>cond</code>指定查询条件, 如：</p>
+<pre><code>cond=&quot;type=&#39;A&#39; and name like &#39;%hello%&#39;&quot; </code></pre>
+<p>URL编码后为</p>
+<pre><code>cond=type%3d%27A%27+and+name+like+%27%25hello%25%27</code></pre>
+<p>以下情况都不允许：</p>
+<pre><code>left(type, 1)=&#39;A&#39;  -- 条件左边只能是字段，不允许计算或函数
+type=type2  -- 字段与字段比较不允许
+type in (select type from table2) -- 子表不允许</code></pre>
+<p>query返回有两种形式, 缺省返回table类型便于支持分页, 但不支持查询子对象(subobj参数). 如果指定参数<code>wantArray=1</code>, 可以返回子对象, 但则不支持分页. 例如, query缺省返回:</p>
+<pre><code>{
+    &quot;h&quot;: [&quot;id&quot;, &quot;name&quot;],
+    &quot;d&quot;: [[1, &quot;liang&quot;], [2, &quot;wang&quot;]]
+}</code></pre>
+<p>如果指定wantArray=1则返回:</p>
+<pre><code>{
+    [{&quot;id&quot;: 1, &quot;name&quot;: &quot;liang&quot;}, {&quot;id&quot;: 2, &quot;name&quot;: &quot;wang&quot;}]
+}</code></pre>
+<p><em>[分页参数]</em></p>
+<p>_pagesz:: Integer. 指定页大小, 默认一次返回20条数据。 _pagekey:: String. 指定从哪条数据开始，应根据上次调用时返回数据的&quot;nextkey&quot;字段来填写。</p>
+<p>注意： - 分页只适用于query, 且wantArray=0的情况。</p>
+<p>详细请参考章节<a href="#分页机制">分页机制</a>.</p>
+<h3 id="对象列表导出"><span class="header-section-number">3.1.2</span> 对象列表导出</h3>
+<p>在对象查询接口中添加参数&quot;_fmt&quot;，可以输出指定格式，一般用于列表导出。参数：</p>
+<dl>
+<dt>_fmt</dt>
+<dd>Enum(csv,txt). 导出Query的内容为指定格式。其中，csv为逗号分隔UTF8编码文本；txt为制表分隔的UTF8文本。注意，由于默认会有分页，要想导出所有数据，一般可指定_pagesz=9999。
+</dd>
+</dl>
+<p>在实现时，注意设置正确的HTTP头，如csv文件：</p>
+<pre><code>Content-Type: application/csv; charset=UTF-8
+Content-Disposition: attachment;filename=1.csv</code></pre>
+<p>导出txt文件设置HTTP头的例子：</p>
+<pre><code>Content-Type: text/plain; charset=UTF-8
+Content-Disposition: attachment;filename=1.txt</code></pre>
+<h3 id="对象操作示例"><span class="header-section-number">3.1.3</span> 对象操作示例</h3>
+<p><em>[例: 添加商户]</em></p>
+<p>添加商户, 指定一些字段:</p>
+<pre><code>Store.add()
+    name=华莹汽车(张江店)
+    addr=金科路88号
+    tel=021-12345678</code></pre>
+<p>注:</p>
+<ul>
+<li><p>Store是商户表名, 通过POST字段传递各字段内容. HTTP POST请求如下所示(实际发送时, 每个字段的值应使用UTF8+URL编码, 示例中未进行编码):</p>
+<pre><code>POST /api.php?ac=Store.add
+Content-Type: application/x-www-form-urlencoded
+
+name=华莹汽车(张江店)&amp;addr=金科路88号&amp;tel=021-12345678</code></pre></li>
+<li><p>id这种主键或只读字段无须设置. 即使设置也应被忽略.</p></li>
+</ul>
+<p>操作成功时返回id值:</p>
+<pre><code>8</code></pre>
+<p><em>[例: 获取商户]</em></p>
+<p>取刚添加的商户(id=8):</p>
+<pre><code>Store.get(id=8)</code></pre>
+<p>操作成功时返回该行内容:</p>
+<pre><code>{id: 8, name: &quot;华莹汽车(张江店)&quot;, addr: &quot;金科路88号&quot;, tel: &quot;021-12345678&quot;, opentime: null, dscr: null}</code></pre>
+<p>可以像query方法一样用POST参数res指定返回值, 如</p>
+<pre><code>Store.get(id=8)
+    res=id,name as storeName,addr</code></pre>
+<p>操作成功时返回该行内容:</p>
+<pre><code>{id: 8, storeName: &quot;华莹汽车(张江店)&quot;, addr: &quot;金科路88号&quot;}</code></pre>
+<p><em>[例: 查询商户]</em></p>
+<p>查询&quot;华莹汽车&quot;在&quot;浦东&quot;的门店, 即查询名称含有&quot;华莹汽车&quot;且地址中含有&quot;浦东&quot;的商户, 只返回id, name, addr字段:</p>
+<pre><code>Store.query()
+    res=id,name,addr
+    cond=name like &#39;%华莹%&#39; and addr like &#39;%浦东%&#39;</code></pre>
+<p>操作成功时返回内容如下:</p>
+<pre><code>{
+    &quot;h&quot;: [ &quot;id&quot;, &quot;name&quot;, &quot;addr&quot; ],
+    &quot;d&quot;: [
+        [ 7, &quot;华莹汽车(金桥店)&quot;, &quot;上海市浦东区金桥路1100号&quot;],
+        [ 8, &quot;华莹汽车(张江店)&quot;, &quot;金科路88号&quot; ]
+    ]
+}</code></pre>
+<p><em>[导出商户]</em></p>
+<p>可以导出文本文件，这些文本又可以导入到WPS，MS excel等软件中继续处理。</p>
+<pre><code>Store.query()
+    res=id,name,addr
+    _fmt=csv
+    _pagesz=9999</code></pre>
+<p>可导出以逗号分隔的表格文本，使用较大的_pagesz以尽量返回所有数据。</p>
+<p><em>[例: 更新商户]</em></p>
+<p>为商户设置描述信息等:</p>
+<pre><code>Store.set(id=8)
+    opentime=8:00-18:00
+    dscr=描述信息.</code></pre>
+<p>操作成功时无返回内容.</p>
+<p><em>[例: 删除商户]</em></p>
+<pre><code>Store.del(id=8)</code></pre>
+<p>操作成功时无返回内容.</p>
+<h2 id="分页机制"><span class="header-section-number">3.2</span> 分页机制</h2>
+<p>如果一个查询支持分页(paging), 则一般调用形式为</p>
+<pre><code>Ordr.query(_pagekey?, _pagesz?=20) -&gt; {nextkey, total?, @h, @d}</code></pre>
+<p>或</p>
+<pre><code>Ordr.query(page, rows?=20) -&gt; {nextkey, total, @h, @d}</code></pre>
+<p><em>[参数]</em></p>
+<dl>
+<dt>_pagesz</dt>
+<dd>Integer. 页大小，默认为20条数据。
+</dd>
+<dt>_pagekey</dt>
+<dd>String (目前是数值). 一般某次查询不填写（如需要返回总记录数即total字段，则应填写为0），而下次查询时应根据上次调用时返回数据的&quot;nextkey&quot;字段来填写。
+</dd>
+<dt>page/rows</dt>
+<dd>这两个参数用于兼容某些支持分页的前端组件，如jquery-easyui。它们与_pagekey/_pagesz类似, 而区别在于: 每次均返回total字段; 强制采用&quot;limit&quot;分页算法(详细见下节，如果用_pagekey, 则会自动选择&quot;部分查询&quot;或&quot;limit&quot;分页算法)，这时返回的nextkey一定是page+1或空(当没有更多数据).
+</dd>
+</dl>
+<p><em>[返回值]</em></p>
+<dl>
+<dt>nextkey</dt>
+<dd>String. 一个字符串, 供取下一页时填写参数&quot;_pagekey&quot;. 如果不存在该字段，则说明已经是最后一批数据。
+</dd>
+<dt>total</dt>
+<dd>Integer. 返回总记录数，仅当_pagekey指定为0时返回。
+</dd>
+<dt>h/d</dt>
+<dd>实际数据表的头信息(header)和数据行(data)，符合table对象的格式，参考上一章节tbl(id,name)介绍。
+</dd>
+</dl>
+<p><em>[示例]</em></p>
+<p>第一次查询</p>
+<pre><code>Ordr.query()</code></pre>
+<p>返回</p>
+<pre><code>{nextkey: 10800910, h: [id, ...], data: [...]}</code></pre>
+<p>其中的nextkey将供下次查询时填写_pagekey字段；</p>
+<p>要在首次查询时返回总记录数，可以设置用_pagekey=0：</p>
+<pre><code>Ordr.query(_pagekey=0)</code></pre>
+<p>这时返回</p>
+<pre><code>{nextkey: 10800910, total: 51, h: [id, ...], data: [...]}</code></pre>
+<p>total字段表示总记录数。由于缺省页大小为20，所以可估计总共有51/20=3页。</p>
+<p>第二次查询(下一页)</p>
+<pre><code>Ordr.query(_pagekey=10800910)</code></pre>
+<p>返回</p>
+<pre><code>{nextkey: 10800931, h: [...], d: [...]}</code></pre>
+<p>仍返回nextkey字段说明还可以继续查询，</p>
+<p>再查询下一页</p>
+<pre><code>Ordr.query(_pagekey=10800931)</code></pre>
+<p>返回</p>
+<pre><code>{h: [...], d: [...]}</code></pre>
+<p>返回数据中不带&quot;nextkey&quot;属性，表示所有数据获取完毕。</p>
+<h2 id="分页机制实现"><span class="header-section-number">3.3</span> 分页机制实现</h2>
+<p>分页有两种实现方式：分段查询和传统分页。</p>
+<p>分段查询性能高，更精确，不会丢失数据。但它仅适用于未指定排序字段（无orderby参数）或排序字段是id的情况（例如：orderby=&quot;id DESC&quot;）。 系统将根据orderby参数自动选择分段查询或传统分页。</p>
+<p><em>[分段查询]</em></p>
+<p>分段查询的原理是利用主键id进行查询条件控制（自动修改WHERE语句），pagekey字段实际是上次数据的最后一个id.</p>
+<p>首次查询：</p>
+<pre><code>Ordr.query()</code></pre>
+<p>SQL样例如下：</p>
+<pre><code>SELECT * FROM Ordr t0
+...
+ORDER BY t0.id
+LIMIT {pagesz}</code></pre>
+<p>再次查询</p>
+<pre><code>Ordr.query(_pagekey=10800910)</code></pre>
+<p>SQL样例如下：</p>
+<pre><code>SELECT * FROM Ordr t0
+...
+WHERE t0.id&gt;10800910
+ORDER BY t0.id
+LIMIT {pagesz}</code></pre>
+<p><em>[传统分页]</em></p>
+<p>传统分页只需要通过SQL语句的LIMIT关键字来实现。pagekey字段实际是页码。其原理是：</p>
+<p>首次查询</p>
+<pre><code>Ordr.query(orderby=&quot;comeTm DESC&quot;)</code></pre>
+<p>（以comeTm作为排序字段，无法应用分段查询机制，只能使用传统分页。）</p>
+<p>SQL样例如下：</p>
+<pre><code>SELECT * FROM Ordr t0
+...
+ORDER BY comeTm DESC, t0.id
+LIMIT 0,{pagesz}</code></pre>
+<p>再次查询</p>
+<pre><code>Ordr.query(_pagekey=2)</code></pre>
+<p>SQL样例如下：</p>
+<pre><code>SELECT * FROM Ordr t0
+...
+ORDER BY comeTm DESC, t0.id
+LIMIT ({pagekey}-1)*{pagesz}, {pagesz}</code></pre>
+<h2 id="合作伙伴接口设计"><span class="header-section-number">3.4</span> 合作伙伴接口设计</h2>
+<p>如果外部合作伙伴系统希望调用接口进行操作，有两种设计方式。</p>
+<p>一种是将它当作特殊的应用端，使用特别的应用标识（如partner）先登录，然后维持会话，继而调用其它接口，所有这些接口定义特别的权限，如AUTO_PARTNER_XX（参考<a href="#接口权限">接口权限</a>节）。</p>
+<p>另一种是每次接口调用均需验证身份，使用的是统一的AUTH_PARTNER权限，一般合作接口很少的情况下常常使用这种设计方式。</p>
+<p>协议规定，参数&quot;partnerId&quot;, &quot;_pwd/_sign&quot;用于合作伙伴验证身份。实际使用时，可选用密码或MD5签名两种方式之一，一般MD5签名性能较HTTPS高。</p>
+<ul>
+<li>使用密码(&quot;_pwd&quot;)验证时，应考虑强制使用HTTPS协议，禁止HTTP请求。</li>
+<li>使用签名验证身份时，服务端依据<a href="#签名算法">签名算法</a>章节进行身份验证。</li>
+</ul>
+<p>以导入订单接口为例：</p>
+<pre><code>导入订单接口：
+importOrder(partnerId, _sign, p_startTm?, p_endTm?)(POST fields for Ordr table) -&gt; orderId
+
+权限：AUTH_PARTNER，限XX合作方使用。
+
+参数：
+partnerId:: 合作伙伴编号。XX请填写2.
+_sign:: 合作伙伴身份验证。关于_sign如何生成请参考附录-签名算法。</code></pre>
+<h3 id="签名算法"><span class="header-section-number">3.4.1</span> 签名算法</h3>
+<p>签名生成规则如下：</p>
+<ul>
+<li>所有名字不以下划线开头的参数（包括URL中和POST中的参数）均为待签名参数。如_pwd/_test这些参数不参与签名。</li>
+<li>对所有待签名参数按照字段名的ASCII 码从小到大排序（字典序，注意区分大小写）后，使用URL键值对的格式（即key1=value1&amp;key2=value2…）拼接成字符串string1。 注意：字段名和字段值都采用原始值，不进行URL 转义。</li>
+<li>将string1和合作密码拼接得到string2, 即 <code>string2=string1 + pwd</code></li>
+<li>然后对string2做md5加密，即<code>_sign=md5(string2)</code>, 将值传给<code>_sign</code>参数.</li>
+</ul>
+<p><em>[示例]</em></p>
+<p>假如有以下参数：</p>
+<pre><code>svcId=100
+amount=0</code></pre>
+<p>合伙方密码为<code>ABCD</code>, 则计算签名如下：</p>
+<pre><code>string1 = &quot;amount=0&amp;svcId=100&quot; （按参数名字母排序拼接）
+pwd = &quot;ABCD&quot;
+string2 = string1 + pwd = &quot;amount=0&amp;svcId=100ABCD&quot;
+
+_sign = md5(string2) = &quot;4c4ca8bf0f29a0e877ce1f1b0bf5054a&quot;</code></pre>
+</body>
+</html>
