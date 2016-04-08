@@ -432,10 +432,10 @@ res
 : String. 指定返回字段, 多个字段以逗号分隔，例如, res="field1,field2".
 
 cond
-: String. 指定查询条件，格式可参照SQL语句的"WHERE"子句。例如：cond="field1>100 AND field2='hello'", 注意使用UTF8+URL编码, 字符串值应加上单引号.
+: String. 指定查询条件，语法可参照SQL语句的"WHERE"子句。例如：cond="field1>100 AND field2='hello'", 注意使用UTF8+URL编码, 字符串值应加上单引号.
 
 orderby
-: String. 指定排序条件，格式可参照SQL语句的"ORDER BY"子句，例如：orderby="id desc"，也可以多个排序："tm desc,status" (按时间倒排，再按状态正排)
+: String. 指定排序条件，语法可参照SQL语句的"ORDER BY"子句，例如：orderby="id desc"，也可以多个排序："tm desc,status" (按时间倒排，再按状态正排)
 
 distinct
 : Boolean. 如果为1, 生成"SELECT DISTINCT ..."查询.
@@ -630,7 +630,7 @@ h/d
 
 返回
 
-	{nextkey: 10800910, h: [id, ...], data: [...]}
+	{nextkey: 10800910, h: [id, ...], d: [...]}
 
 其中的nextkey将供下次查询时填写_pagekey字段；
 
@@ -640,7 +640,7 @@ h/d
 
 这时返回
 
-	{nextkey: 10800910, total: 51, h: [id, ...], data: [...]}
+	{nextkey: 10800910, total: 51, h: [id, ...], d: [...]}
 
 total字段表示总记录数。由于缺省页大小为20，所以可估计总共有51/20=3页。
 
