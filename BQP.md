@@ -201,6 +201,98 @@ URL参数"_debug"定义调试等级, 默认为0. 如果为1-9的数字, 将添�
 	curl_setopt($h, CURLOPT_SSL_VERIFYPEER, false);
 	curl_setopt($h, CURLOPT_SSL_VERIFYHOST, 0);
 
+## 批量请求
+
+BQP协议支持批量请求，即在一次请求中，包含多条调用。
+在创建批量请求时，可以指定这些调用是否在一个事务(transaction)中，一起成功提交或失败回滚。
+
+前端接口示例：
+
+	var batch = new MUI.batchCall();
+	// var batch = new MUI.batchCall({useTrans: true}); // 使用同一事务时，可指定useTrans=true
+
+	// 调用一
+	var param = {res: "id,name,phone"};
+	callSvr("User.get", param, function(data) {} )
+
+	// 调用二
+	var postParam = {page: "home", ver: "android", userId: "{$1.id}"};
+	callSvr("ActionLog.add", function(data) {}, postParam, {ref: ["userId"]} );
+
+	batch->commit();
+	// batch->cancel();
+
+还有一种方式更简单：
+
+	MUI.useBatchCall(); // 在本次消息循环中执行所有的callSvr都加入批处理。
+	// MUI.useBatchCall({useTrans:1}, 20); // 表示20ms内所有callSvr都加入批处理, 且启用事务。
+	callSvr(...);
+	callSvr(...);
+	callSvr(..., {noBatch: 1}); // TODO:使用noBatch参数可以强制单独执行，不加入批处理。
+
+其中，调用二中参数userId引用了调用一的返回结果，通过在callSvr后指定参数ref标明。userId的值"{$1.id}"表示取第一次调用值的id属性。
+注意：引用表达式应以"{}"包起来，"$n"中n可以为正数或负数（但不能为0），表示对第n次或前n次调用结果的引用，以下为可能的格式：
+
+	"{$1}"
+	"id={$1.id}"
+	"{$-1.d[0][0]}"
+	"id in ({$1}, {$2})"
+	"diff={$-2 - $-1}"
+
+花括号中的内容将用计算后的结果替换。如果表达式非法，将使用"null"值替代。
+
+数据传输格式: 
+
+提交使用JSON格式，示例如下
+
+	POST api/batch
+
+	[
+		{
+			"ac": "User.get",
+			"get": {"res": "name,phone"}
+		},
+		{
+			"ac": "ActionLog.add",
+			"post": {"page": "home", "ver": "android", "userId": "{$-1.id}"},
+			"ref": ["userId"]
+		}
+	]
+
+数组中每一项为一个调用，其格式为: {ac, %get?, %post?, @ref?}, 只有ac参数必须，其它均可省略。
+
+get:: URL请求参数。
+post:: POST请求参数。
+ref:: 使用了batch引用的参数列表。
+
+如果使用事务，只是URL上加个参数：
+
+	POST api/batch?useTrans=1
+
+batch的返回内容是多条调用返回内容组成的数组，样例如下：
+
+	[0, [
+		[ 0, {id: 1, name: "用户1", phone: "13712345678"} ],  // 调用User.get的返回结果
+		[ 0, "OK" ]  // 调用ActionLog.add的返回结果
+	]]
+
+## 服务端信息反馈/X-Daca头
+
+BQP协议规定，以下服务端信息应通过HTTP头反馈给客户端。
+
+服务端API版本号如果可以获取，应发送给客户端:
+
+	X-Daca-Server-Rev: {value}
+
+其中value为最多6位的字符串。
+
+如果服务运行于测试模式或模拟模式，应设置：
+
+	X-Daca-Test-Mode: {value}
+	X-Daca-Mock-Mode: {value}
+
+其中value为非0，一般为1.
+
 # 形式化接口描述
 
 接口描述应让人明确接口原型，参数（或返回属性）类型和含义，以及权限说明，如：
