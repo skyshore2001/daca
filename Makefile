@@ -1,4 +1,9 @@
-all: html/BQP.html html/README.html
+OUT=html/BQP.html html/README.html
 
-html/%.html: %.md h.inc
-	pandoc -f markdown -t html -s --toc -N -H h.inc -o $@ $<
+all: $(OUT)
+
+clean:
+	-rm -rf $(OUT)
+
+html/%.html: %.md
+	pandoc $< | perl tool/filter-md-html.pl > $@ 
