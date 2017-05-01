@@ -81,6 +81,47 @@
 
 - 请求时，应自动添加应用标识参数。（参考`应用标识/appName`）
 
+### 压缩表处理
+
+将服务端对象查询返回的压缩表格式(也称为RowSet/rs)转成对象数组。
+
+	rs2Array(rs) -> [ %obj ]
+	rs2Hash(rs, key) -> {key => %obj}
+	rs2MultiHash(rs) -> {key => [%obj] }
+
+参数
+
+- rs: {@h, @d}, h和d分别表示标题行和数据行。
+
+示例：
+
+	var rs = {
+		h: ["id", "name"], 
+		d: [ [100, "Tom"], [101, "Jane"], [102, "Tom"] ] 
+	};
+	var arr = rs2Array(rs); 
+	var hash = rs2Hash(rs, "id"); 
+	var hash2 = rs2MultiHash(rs, "name"); 
+
+	// 结果为
+	arr = [
+		{id: 100, name: "Tom"},
+		{id: 101, name: "Jane"} 
+		{id: 102, name: "Tom"} 
+	];
+
+	hash = {
+		100: {id: 100, name: "Tom"},
+		101: {id: 101, name: "Jane"} 
+		102: {id: 102, name: "Tom"} 
+	};
+
+	hash2 = {
+		"Tom": [ {id: 100, name: "Tom"}, {id: 102, name: "Tom"} ]
+		"Jane": [ {id: 101, name: "Jane"} ]
+	};
+	
+示例：rs2Hash
 ## 批请求
 
 客户端可实现批请求，在一次请求中包含多条接口调用。
@@ -122,6 +163,13 @@
 	"diff={$-2 - $-1}"
 
 花括号中的内容将用计算后的结果替换。如果表达式非法，将使用"null"值替代。
+
+## 对象列表与详情设计模式
+
+根据服务器通用对象接口，客户端框架可提供列表页与详情页的支持。
+
+- 列表页应支持通用的对象列表分页、刷新、查询过滤、排序、删除、选中对象后关联详情页等需求；
+- 详情页一般支持添加、更新、显示对象多功能和一，同时可做列表查询条件设置。
 
 ## 其它
 
