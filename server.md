@@ -11,9 +11,69 @@ DACA服务端提供基于HTTP的Web服务接口，实现BQP协议。
 - 参数 param / mparam
 - 数据库 dbconn / queryOne / queryAll / execOne
 - 权限 checkAuth / hasPerm / AccessControl
-- 错误处理 MyException
+- 错误处理 MyException / jdRet
 - 接口应用程序 ApiApp
-- 日志处理 addLog / logIt
+- 日志处理 addLog / logit
+
+### 参数处理
+
+获取请求参数
+
+	param(name, defVal?, coll?) -> val
+	mparam(name, coll?) -> val
+
+@param $col: 默认先取$_GET再取$_POST，"G" - 从$_GET中取; "P" - 从$_POST中取
+
+以下形式已不建议使用：
+
+@fn param($name, $defVal?, $col?=$_REQUEST, $doHtmlEscape=true)
+@param $col: key-value collection
+
+获取名为$name的参数。
+$name中可以指定类型，返回值根据类型确定。如果该参数未定义或是空串，直接返回缺省值$defVal。
+
+$name中指定类型的方式如下：
+- 名为"id", 或以"Id"或"/i"结尾: int
+- 以"/b"结尾: bool. 可接受的字符串值为: "1"/"true"/"on"/"yes"=>true, "0"/"false"/"off"/"no" => false
+- 以"/dt"或"/tm"结尾: datetime
+- 以"/n"结尾: numeric/double
+- 以"/s"结尾（缺省）: string. 缺省为防止XSS攻击会做html编码，如"a&b"处理成"a&amp;b"，设置参数doHtmlEscape可禁用这个功能。
+- 复杂类型：以"/i+"结尾: int array
+- 复杂类型：以"/js"结尾: json object
+- 复杂类型：List类型（以","分隔行，以":"分隔列），类型定义如"/i:n:b:dt:tm" （列只支持简单类型，不可为复杂类型）
+
+示例：
+
+	$id = param("id");
+	$svcId = param("svcId/i", 99);
+	$wantArray = param("wantArray/b", false);
+	$startTm = param("startTm/dt", time());
+
+List类型示例。参数"items"类型在文档中定义为list(id/Integer, qty/Double, dscr/String)，可用param("items/i:n:s")获取, 值如
+
+	items=100:1:洗车,101:1:打蜡
+
+返回
+
+	[ [ 100, 1.0, "洗车"], [101, 1.0, "打蜡"] ]
+
+如果某列可缺省，用"?"表示，如param("items/i:n?:s?")可获取值：
+
+	items=100:1,101::打蜡
+
+返回
+
+	[ [ 100, 1.0, null], [101, null, "打蜡"] ]
+
+TODO: 直接支持 param("items/(id,qty?/n,dscr?)"), 添加param_objarr函数，去掉parseList函数。上例将返回
+
+	[
+		[ "id"=>100, "qty"=>1.0, dscr=>null],
+		[ "id"=>101, "qty"=>null, dscr=>"打蜡"]
+	]
+
+
+
 
 ## 函数型接口
 
